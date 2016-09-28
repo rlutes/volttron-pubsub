@@ -1,0 +1,38 @@
+{																	# Example configuration for PubSubAgent
+    "inputs" : {													# Inputs to the agent
+    	"inputVar1" : {												# Variable identifier used within the agent
+    		"topic" : "test/input1"									# Topic to which to listen for input
+    																# Message is assumed to be in the format:
+    																#	[value, {"units": units, "tz": tz, "type": type}]
+    	},															#
+    	"inputVar2" : {												# Variable identifier used within the agent
+    		"topic" : "test/topic",									# Topic to which to listen for input
+    		"field" : "input2"										# Key in the message
+    																# Message is assumed to be in the format:
+    																# 	[{"input2": value, ...}, {"input2": {"units": units, "tz": tz, "type": type}, ...}]
+    	},															#
+    	"inputVar3" : {												# Variable identifier used within the agent
+    		"topic" : "test/topic",									# Topic to which to listen for input
+    		"field" : "input3",										# Similar to var2, the agent will look for key 'input3' when
+    																# 	messages arrive on the 'test/topic' topic
+    		"value" : 1,												# Initial value to be published
+    		"handler" : "onMatchTopic"								# By default, the agent will call any method named by 'handler',
+    																# 	if it exists, when a message arrives on 'test/topic'. It will 
+    																#   then look for a method named 'onInputVar3'
+    																#	(i.e. on[variable identifier] in camel-case) if defined. Finally,
+    																# 	it will call the default message handler 'onMatchTopic'. In this example,
+    																#	we name the default handler since no custom handler is defined in the agent.
+    	}															#
+    },																#
+    "outputs" : {													# Outputs the agent publishes
+    	"outputVar1" : {											# Variable identifier used within the agent
+    		"topic" : "test/output1"								# Topic on which to publish output
+    	},															# This will result in a message published in the format:
+    																#	[value, {}]
+    	"outputVar2" : {											# Variable identifier used within the agent
+    		"topic" : "test/topic",									# Topic on which to publish output
+    		"field" : "output2",									# Key in the message
+    		"meta" : {"units": "None", "tz": "UTC", "type": "int"}	# Meta sent in the message
+    	}															# This will result in a message published in the format:
+    }																#	[{"output2": value}, {"output2": {"units": "None", "tz": "UTC", "type": "int"}}]
+}																	#
