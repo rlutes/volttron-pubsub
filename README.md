@@ -1,13 +1,17 @@
 # README #
 
-The PubSub and SynchronizedPubSub agents are VOLTTRON agents that include a number of convenience functions for subscribing to topics, handling topic matches, and synchronizing message exchange. Typically, these agents would not be run on the VOLTTRON platform as provided, but instead would be installed into the VOLTTRON virtual environment and extended by agents requiring this functionality.
+The PubSub and SynchronizedPubSub agents are VOLTTRON agents that include a number of convenience functions for subscribing to topics, handling topic matches, and synchronizing message exchange. Typically, these agents would not be run on the VOLTTRON platform as provided, but instead would be installed into the VOLTTRON virtual environment and extended by agents requiring this functionality. This README contains instructions for installing these modules into the VOLTTRON virtual environments' site-packages directory.
 
-## INSTALLATION ##
+
+## DEPENDENCIES ##
 
 The following instructions assume you have already cloned this repository.
 
 Make sure you have installed [VOLTTRON](https://github.com/VOLTTRON/volttron) and its dependencies.
-Enable the VOLTTRON virtual environment
+
+## INSTALLATION ##
+
+Enable the VOLTTRON virtual environment.
 ~~~
 $ . [VOLTTRON repository location]/env/bin/activate
 ~~~
@@ -17,7 +21,11 @@ $ cd [volttron-pupsub repository location]
 $ python setup.py install
 ~~~
 
-## PACKAGING AND RUNNING ##
+## AGENT CONFIGURATION FOR EXAMPLE ##
+
+No changes need to be made for the included example.
+
+## PACKAGING AND RUNNING EXAMPLE ##
 
 Navigate to VOLTTRON source directory
 ~~~
