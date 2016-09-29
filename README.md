@@ -52,8 +52,6 @@ $ . scripts/core/make-agent.sh
 View the log. The agent will indicate that it has subscribed to the test/input topic.
 ~~~
 $ tail -f [logfilepath.log]
-~~~
-~~~
 ...
 2016-04-25 10:06:27,249 (pubsub-0.1 4493) pubsub.agent INFO: subscribed to test/input
 ...
