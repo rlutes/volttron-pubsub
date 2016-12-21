@@ -17,7 +17,7 @@ $ . [VOLTTRON repository location]/env/bin/activate
 ~~~
 Install the package.
 ~~~
-$ cd [volttron-pupsub repository location]
+$ cd [volttron-pubsub repository location]
 $ python setup.py install
 ~~~
 
@@ -41,8 +41,8 @@ $ volttron -vv -l [logfilepath.log] &
 ~~~
 Export environment variables required for make-agent.sh
 ~~~
-$ export SOURCE=[volttron-pupsub repository location]/pnnl/pubsubagent/
-$ export CONFIG=[volttron-pupsub repository location]/pubsub
+$ export SOURCE=[volttron-pubsub repository location]/pnnl/pubsubagent/
+$ export CONFIG=[volttron-pubsub repository location]/pubsub
 $ export TAG=pubsub-a
 ~~~
 Run the VOLTTRON make-agent.sh script
