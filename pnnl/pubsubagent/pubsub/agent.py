@@ -1,56 +1,58 @@
 # -*- coding: utf-8 -*- {{{
 # vim: set fenc=utf-8 ft=python sw=4 ts=4 sts=4 et:
-#
-# Copyright (c) 2016, Battelle Memorial Institute
+
+# Copyright (c) 2017, Battelle Memorial Institute
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions are met:
+# modification, are permitted provided that the following conditions
+# are met:
 #
-# 1. Redistributions of source code must retain the above copyright notice, this
-#    list of conditions and the following disclaimer.
-# 2. Redistributions in binary form must reproduce the above copyright notice,
-#    this list of conditions and the following disclaimer in the documentation
-#    and/or other materials provided with the distribution.
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in
+#    the documentation and/or other materials provided with the
+#    distribution.
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-# WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-# DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-# ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-# (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
-# ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-# SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+# A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+# OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+# SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+# LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+# DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+# THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+# (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+# OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# The views and conclusions contained in the software and documentation are those
-# of the authors and should not be interpreted as representing official policies,
-# either expressed or implied, of the FreeBSD Project.
+# The views and conclusions contained in the software and documentation
+# are those of the authors and should not be interpreted as representing
+# official policies, either expressed or implied, of the FreeBSD
+# Project.
 #
-
 # This material was prepared as an account of work sponsored by an
 # agency of the United States Government.  Neither the United States
 # Government nor the United States Department of Energy, nor Battelle,
-# nor any of their employees, nor any jurisdiction or organization
-# that has cooperated in the development of these materials, makes
-# any warranty, express or implied, or assumes any legal liability
-# or responsibility for the accuracy, completeness, or usefulness or
-# any information, apparatus, product, software, or process disclosed,
-# or represents that its use would not infringe privately owned rights.
+# nor any of their employees, nor any jurisdiction or organization that
+# has cooperated in the development of these materials, makes any
+# warranty, express or implied, or assumes any legal liability or
+# responsibility for the accuracy, completeness, or usefulness or any
+# information, apparatus, product, software, or process disclosed, or
+# represents that its use would not infringe privately owned rights.
 #
 # Reference herein to any specific commercial product, process, or
-# service by trade name, trademark, manufacturer, or otherwise does
-# not necessarily constitute or imply its endorsement, recommendation,
-# r favoring by the United States Government or any agency thereof,
-# or Battelle Memorial Institute. The views and opinions of authors
+# service by trade name, trademark, manufacturer, or otherwise does not
+# necessarily constitute or imply its endorsement, recommendation, or
+# favoring by the United States Government or any agency thereof, or
+# Battelle Memorial Institute. The views and opinions of authors
 # expressed herein do not necessarily state or reflect those of the
 # United States Government or any agency thereof.
 #
 # PACIFIC NORTHWEST NATIONAL LABORATORY
 # operated by BATTELLE for the UNITED STATES DEPARTMENT OF ENERGY
 # under Contract DE-AC05-76RL01830
-
 #}}}
 
 from inspect import getcallargs
@@ -59,23 +61,25 @@ from datetime import datetime
 from volttron.platform.agent import utils
 from volttron.platform.messaging import headers as headers_mod
 from volttron.platform.vip.agent import Agent, Core
+import time
+from datetime import timedelta as td
 
 
 utils.setup_logging()
 log = logging.getLogger(__name__)
 
 
-class PubSubAgent(Agent):
-        
+class PubSubAgent(Agent):       
     def __init__(self, config_path, **kwargs):
         self.config = utils.load_config(config_path)
-        self.INPUTS = collections.OrderedDict()
-        self.OUTPUTS = collections.OrderedDict()
-        kwargs = self.updateKwargsFromConfig(**kwargs)
+        self.inputs = collections.OrderedDict()
+        self.outputs = collections.OrderedDict()
+        kwargs = self.update_kwargs_from_config(**kwargs)
         super(PubSubAgent, self).__init__(**kwargs)
+        self._now = datetime.utcnow()
 
     
-    def updateKwargsFromConfig(self, **kwargs):
+    def update_kwargs_from_config(self, **kwargs):
         signature = getcallargs(super(PubSubAgent, self).__init__)
         for arg in signature:
             if self.config.has_key('properties'):
@@ -88,11 +92,12 @@ class PubSubAgent(Agent):
     @Core.receiver('onsetup')
     def setup(self, sender, **kwargs):
         if 'inputs' in self.config: 
-            self.INPUTS = self.config['inputs']
+            self.inputs = self.config['inputs']
         if 'outputs' in self.config:
-            self.OUTPUTS = self.config['outputs']
+            self.outputs = self.config['outputs']
         if 'properties' in self.config and isinstance(self.config['properties'], dict):
             self.__dict__.update(self.config['properties'])
+        self.cosimulation_advance = self.config.get('cosimulation_advance', None)
 
 
     @Core.receiver('onstart')  
@@ -102,17 +107,17 @@ class PubSubAgent(Agent):
     
     def input(self, *args):
         if len(args) == 0:
-            return self.INPUTS
-        return self.inOut(self.INPUTS, *args)
+            return self.inputs
+        return self.input_output(self.inputs, *args)
  
  
     def output(self, *args):
         if len(args) == 0:
-            return self.OUTPUTS
-        return self.inOut(self.OUTPUTS, *args) 
+            return self.outputs
+        return self.input_output(self.outputs, *args) 
  
  
-    def inOut(self, dct, *args):
+    def input_output(self, dct, *args):
         if len(args) >= 1:
             key = args[0]
             if dct.has_key(key):
@@ -129,30 +134,32 @@ class PubSubAgent(Agent):
     def subscribe(self):
         for key, obj in self.input().iteritems():
             if obj.has_key('topic'):
-                callback = self.onMatchTopic
+                callback = self.on_match_topic
                 topic = obj.get('topic')
-                keyCaps = 'onMatch'+key[0].upper()+key[1:]
+                key_caps = 'onMatch' + key[0].upper() + key[1:]
                 if obj.has_key('callback'):
                     callbackstr = obj.get('callback')
-                    if (hasattr(self, callbackstr) and 
-                            callable(getattr(self, callbackstr, None))):
+                    if hasattr(self, callbackstr) and callable(getattr(self, callbackstr, None)):
                         callback = getattr(self, callbackstr)
-                elif (hasattr(self, keyCaps) and 
-                            callable(getattr(self, keyCaps, None))):
-                    callback = getattr(self, keyCaps)
+                elif hasattr(self, key_caps) and callable(getattr(self, key_caps, None)):
+                    callback = getattr(self, key_caps)
                 log.info('subscribed to ' + topic)
                 self.vip.pubsub.subscribe(peer='pubsub', prefix=topic, callback=callback)
+        if self.cosimulation_advance is not None:
+            self.vip.pubsub.subscribe(peer='pubsub', prefix=self.cosimulation_advance, callback=self.advance_simulation)
 
-
-    def publishAllOutputs(self):
+    def publish_all_outputs(self):
         #Publish messages
         self.publish(*self.output().values())
 
 
     def publish(self, *args):
         #Publish message
-        now = datetime.utcnow().isoformat(' ') + 'Z'
-        headers = {headers_mod.DATE: now, headers_mod.TIMESTAMP: now}
+        _now = self._now + td(minutes=1)
+        self._now = _now
+        _now = _now.isoformat(' ') + 'Z'
+        
+        headers = {headers_mod.DATE: _now, headers_mod.TIMESTAMP: _now}
         topics = {}
         for arg in args:
             obj = self.output(arg) if type(arg) == str else arg
@@ -160,43 +167,39 @@ class PubSubAgent(Agent):
                 topic = obj.get('topic', None)
                 value = obj.get('value', None)
                 field = obj.get('field', None)
-                metad = obj.get('meta', {})
-                if (topic is not None) and (value is not None):
+                metadata = obj.get('meta', {})
+                if topic is not None and value is not None:
                     if not topics.has_key(topic):
-                        topics[topic] = {'values':None, 'fields':None}
+                        topics[topic] = {'values': None, 'fields': None}
                     if field is not None:
                         if topics[topic]['fields'] is None:
-                            topics[topic]['fields'] = [{},{}]
+                            topics[topic]['fields'] = [{}, {}]
                         topics[topic]['fields'][0][field] = value
-                        topics[topic]['fields'][1][field] = metad
+                        topics[topic]['fields'][1][field] = metadata
                     else:
                         if topics[topic]['values'] is None:
                             topics[topic]['values'] = []
-                        topics[topic]['values'].append([value, metad])
+                        topics[topic]['values'].append([value, metadata])
         for topic, obj in topics.iteritems():
-            if obj['values'] is not None:
-                for value in obj['values']:
-                    out = value
-                    log.info('Sending: ' + topic + ' ' + str(out))
-                    self.vip.pubsub.publish('pubsub', topic, headers, out).get()
-            if obj['fields'] is not None:
-                out = obj['fields']
-                log.info('Sending: ' + topic + ' ' + str(out))
-                self.vip.pubsub.publish('pubsub', topic, headers, out).get()
+           if obj['values'] is not None:
+              for value in obj['values']:
+                  out = value
+                  log.info('Sending: ' + topic + ' ' + str(out))
+                  self.vip.pubsub.publish('pubsub', topic, headers, out).get()
+           if obj['fields'] is not None:
+                  out = obj['fields']
+                  log.info('Sending: ' + topic + ' ' + str(out))
+                  self.vip.pubsub.publish('pubsub', topic, headers, out).get()
 
 
-    def onMatchTopic(self, peer, sender, bus, topic, headers, message):
-        mssg = message if type(message) == type([]) else [message]
-        # we are looking for an exact match!
-        objs = self.getInputsFromTopic(topic)
-        if objs is None:
-            return
-        log.info('Received: ' + topic + ' ' + str(mssg))
-        self.updateTopic(peer, sender, bus, topic, headers, mssg)
+    def on_match_topic(self, peer, sender, bus, topic, headers, message):
+        msg = message if type(message) == type([]) else [message]
+        log.info('Received: ' + topic + ' ' + str(msg))
+        self.update_topic(peer, sender, bus, topic, headers, msg)
         
 
-    def updateTopic(self, peer, sender, bus, topic, headers, message):
-        objs = self.getInputsFromTopic(topic)
+    def update_topic(self, peer, sender, bus, topic, headers, message):
+        objs = self.get_inputs_from_topic(topic)
         if objs is None:
             return
         for obj in objs:
@@ -207,28 +210,28 @@ class PubSubAgent(Agent):
             obj['message'] = message[0]
             obj['message_meta'] = message[1]
             obj['last_update'] = headers.get(headers_mod.DATE, datetime.utcnow().isoformat(' ') + 'Z')
-            self.onUpdateTopic(peer, sender, bus, topic, headers, message)
+            self.on_update_topic(peer, sender, bus, topic, headers, message)
 
 
-    def onUpdateTopic(self, peer, sender, bus, topic, headers, message):
-        self.updateComplete()
+    def on_update_topic(self, peer, sender, bus, topic, headers, message):
+        self.update_complete()
         
         
-    def updateComplete(self):
-        self.onUpdateComplete()
+    def update_complete(self):
+        self.on_update_complete()
         
         
-    def onUpdateComplete(self):
+    def on_update_complete(self):
         pass
         
         
-    def clearLastUpdate(self):
+    def clear_last_update(self):
         for obj in self.input().itervalues():
             if obj.has_key('topic'):
                 obj['last_update'] = None
 
 
-    def getInputsFromTopic(self, topic):
+    def get_inputs_from_topic(self, topic):
         objs = []
         for obj in self.input().itervalues():
             if (obj.get('topic') == topic):
@@ -238,15 +241,15 @@ class PubSubAgent(Agent):
         return None
 
 
-    def findBestMatch(self, topic):
+    def find_best_match(self, topic):
         topic = topic.strip('/')
         device_name, point_name = topic.rsplit('/', 1)
-        objs = self.getInputsFromTopic(device_name)
+        objs = self.get_inputs_from_topic(device_name)
         if objs is not None:
             for obj in objs:
                 if obj.has_key('field') and obj.get('field', None) == point_name: # we have matches to the <device topic>, so get the first one has a field matching <point name>
                     return obj
-        objs = self.getInputsFromTopic(topic)
+        objs = self.get_inputs_from_topic(topic)
         if objs is not None and len(objs): # we have exact matches to the topic
             return objs[0]
         return None
@@ -261,16 +264,16 @@ class SynchronizingPubSubAgent(PubSubAgent):
     @Core.receiver('onstart')  
     def start(self, sender, **kwargs):
         super(SynchronizingPubSubAgent, self).start(sender, **kwargs)
-        self.updateComplete()
+        self.update_complete()
         
     
-    def updateComplete(self):
-        if self.allTopicsUpdated():
-            self.clearLastUpdate()
-            self.onUpdateComplete()
+    def update_complete(self):
+        if self.all_topics_updated():
+            self.clear_last_update()
+            self.on_update_complete()
             
             
-    def allTopicsUpdated(self):
+    def all_topics_updated(self):
         for obj in self.input().itervalues():
             if obj.has_key('topic'):
                 if (obj.has_key('blocking') and obj.get('blocking')) or not obj.has_key('blocking'):
@@ -282,8 +285,8 @@ class SynchronizingPubSubAgent(PubSubAgent):
         return True
 
 
-    def onUpdateComplete(self):
-        self.publishAllOutputs()
+    def on_update_complete(self):
+        self.publish_all_outputs()
 
 
 class Event(object):
