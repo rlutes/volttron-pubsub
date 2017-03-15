@@ -94,7 +94,8 @@ class PubSubAgent(Agent):
         if 'inputs' in self.config: 
             self.inputs = self.config['inputs']
         if 'outputs' in self.config:
-            self.outputs = self.config['outputs']
+            outputs = self.config['outputs']
+            self.outputs = self.create_ordered_output(outputs)
         if 'properties' in self.config and isinstance(self.config['properties'], dict):
             self.__dict__.update(self.config['properties'])
         self.cosimulation_advance = self.config.get('cosimulation_advance', None)
@@ -103,7 +104,21 @@ class PubSubAgent(Agent):
     @Core.receiver('onstart')  
     def start(self, sender, **kwargs):
         self.subscribe()
-    
+
+
+    def create_ordered_output(self, output):
+        last_key = None
+        ordered_out = collections.OrderedDict()
+        for key, value in output.items():
+            if not value.has_key('publish_last'):
+                ordered_out[key] = value
+            else:
+                last_key = key
+                last_value = value
+        if last_key is not None:
+            ordered_out[last_key] = last_value
+        return ordered_out
+        
     
     def input(self, *args):
         if len(args) == 0:
@@ -239,9 +254,19 @@ class PubSubAgent(Agent):
         if len(objs):
             return objs
         return None
+        
+    def get_outputs_from_topic(self, topic):
+        objs = []
+        for obj in self.output().itervalues():
+            if (obj.get('topic') == topic):
+                    objs.append(obj)
+        if len(objs):
+            return objs
+        return None
 
 
     def find_best_match(self, topic):
+        # find match on inputs
         topic = topic.strip('/')
         device_name, point_name = topic.rsplit('/', 1)
         objs = self.get_inputs_from_topic(device_name)
@@ -252,6 +277,17 @@ class PubSubAgent(Agent):
         objs = self.get_inputs_from_topic(topic)
         if objs is not None and len(objs): # we have exact matches to the topic
             return objs[0]
+        #if no inputs match check outputs
+        if objs is None:
+            device_name = ''.join(['devices', '/', device_name, '/', 'all'])
+            objs = self.get_outputs_from_topic(device_name)
+            if objs is not None:
+                for obj in objs:
+                    if obj.has_key('field') and obj.get('field', None) == point_name: # we have matches to the <device topic>, so get the first one has a field matching <point name>
+                        return obj
+            objs = self.get_outputs_from_topic(topic)
+            if objs is not None and len(objs): # we have exact matches to the topic
+                return objs[0]
         return None
 
 
